@@ -16,14 +16,17 @@ export const redis = new IORedis({
 });
 
 // Handle Redis connection errors gracefully
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 redis.on("error", (err: Error) => {
     console.error("[Redis] Connection error:", err.message);
 });
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 redis.on("connect", () => {
     console.log("[Redis] Connected successfully");
 });
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 redis.on("ready", () => {
     console.log("[Redis] Ready to accept commands");
 });
