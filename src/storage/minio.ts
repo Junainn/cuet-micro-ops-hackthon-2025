@@ -10,25 +10,32 @@ const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY;
  * Enabled only when all required env vars exist.
  */
 export const isMinioEnabled =
-  Boolean(MINIO_ENDPOINT) &&
-  Boolean(MINIO_ACCESS_KEY) &&
-  Boolean(MINIO_SECRET_KEY);
+  typeof MINIO_ENDPOINT === "string" &&
+  typeof MINIO_ACCESS_KEY === "string" &&
+  typeof MINIO_SECRET_KEY === "string";
 
-export const minio: Client | null = isMinioEnabled
-  ? new Client({
-      endPoint: MINIO_ENDPOINT as string,
-      port: MINIO_PORT,
-      useSSL: false,
-      accessKey: MINIO_ACCESS_KEY as string,
-      secretKey: MINIO_SECRET_KEY as string,
-      region: "us-east-1",
-      pathStyle: true,
-    })
-  : null;
+let minioClient: Client | null = null;
 
-if (!isMinioEnabled) {
+if (isMinioEnabled) {
+  // Values are now strongly typed as string
+  const endPoint = MINIO_ENDPOINT;
+  const accessKey = MINIO_ACCESS_KEY;
+  const secretKey = MINIO_SECRET_KEY;
+
+  minioClient = new Client({
+    endPoint,
+    port: MINIO_PORT,
+    useSSL: false,
+    accessKey,
+    secretKey,
+    region: "us-east-1",
+    pathStyle: true,
+  });
+} else {
   console.warn("[MinIO] Disabled (missing env variables)");
 }
+
+export const minio = minioClient;
 
 export const ensureBucket = async (bucket: string): Promise<void> => {
   if (!minio) {
