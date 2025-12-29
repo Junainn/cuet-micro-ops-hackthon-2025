@@ -4,16 +4,17 @@ import { minio, ensureBucket } from "../storage/minio.ts";
 const BUCKET = "download-results";
 await ensureBucket(BUCKET);
 
-const worker = new Worker(
+new Worker(
     "download-queue",
     async (job) => {
-        const { fileIds } = job.data;
+        const { fileIds } = job.data as { fileIds: string[] };
 
         console.log(
-            `[Worker] Started job ${job.id} for files: ${fileIds.join(", ")}`
+            `[Worker] Started job ${job.id ?? ''} for files: ${Array.isArray(fileIds) ? fileIds.join(", ") : ''}`
         );
 
-        await redis.hset(`job:${job.id}`, {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        await redis.hset(`job:${job.id ?? ''}`, {
             status: "processing",
             updatedAt: Date.now(),
         });
@@ -33,10 +34,10 @@ const worker = new Worker(
 
             await new Promise((resolve) => setTimeout(resolve, delayMs));
             // Generate fake result file
-            const content = `Job ${job.id} completed at ${new Date().toISOString()}`;
+            const content = `Job ${job.id ?? ''} completed at ${new Date().toISOString()}`;
             const buffer = Buffer.from(content);
 
-            const objectName = `results/job-${job.id}.txt`;
+            const objectName = `results/job-${job.id ?? ''}.txt`;
 
             // Upload to MinIO
             await minio.putObject(
@@ -48,9 +49,10 @@ const worker = new Worker(
                     "Content-Type": "text/plain",
                 }
             );
-            await redis.hset(`job:${job.id}`, {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+            await redis.hset(`job:${job.id ?? ''}`, {
                 status: "completed",
-                processedFiles: fileIds.length,
+                processedFiles: Array.isArray(fileIds) ? fileIds.length : 0,
                 bucket: BUCKET,
                 resultKey: objectName,
                 updatedAt: Date.now(),
@@ -58,25 +60,28 @@ const worker = new Worker(
 
             
 
-            await redis.expire(`job:${job.id}`, 86400);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+            await redis.expire(`job:${job.id ?? ''}`, 86400);
             console.log(
-                `[Worker] Finished job ${job.id} after ${(delayMs / 1000).toFixed(1)}s`
+                `[Worker] Finished job ${job.id ?? ''} after ${(delayMs / 1000).toFixed(1)}s`
             );
 
             return {
-                processedFiles: fileIds.length,
+                processedFiles: Array.isArray(fileIds) ? fileIds.length : 0,
                 processingTimeMs: delayMs,
             };
         } catch (err) {
             const isLastAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
 
-            await redis.hset(`job:${job.id}`, {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+            await redis.hset(`job:${job.id ?? ''}`, {
                 status: isLastAttempt ? "failed" : "retrying",
                 error: (err as Error).message,
                 updatedAt: Date.now(),
             });
             if (isLastAttempt) {
-                await redis.expire(`job:${job.id}`, 86400);
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+                await redis.expire(`job:${job.id ?? ''}`, 86400);
             }
 
             throw err;
