@@ -1,1 +1,0 @@
-http://localhost:9000/download-results/results/job-14.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20251222%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251222T182113Z&X-Amz-Expires=600&X-Amz-SignedHeaders=host&X-Amz-Signature=5bfa069156a05d95384ada3cb4bca4cf016e6d09d972f8b020c5e559d3abfa3c
