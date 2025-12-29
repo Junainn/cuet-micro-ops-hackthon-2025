@@ -18,7 +18,6 @@ import { downloadQueue } from "./queues/download.queue.ts";
 import { redis } from "./redis.ts";
 import { minio } from "./storage/minio.ts";
 
-
 // Helper for optional URL that treats empty string as undefined
 const optionalUrl = z
   .string()
@@ -62,11 +61,11 @@ const s3Client = new S3Client({
   ...(env.S3_ENDPOINT && { endpoint: env.S3_ENDPOINT }),
   ...(env.S3_ACCESS_KEY_ID &&
     env.S3_SECRET_ACCESS_KEY && {
-    credentials: {
-      accessKeyId: env.S3_ACCESS_KEY_ID,
-      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-    },
-  }),
+      credentials: {
+        accessKeyId: env.S3_ACCESS_KEY_ID,
+        secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+      },
+    }),
   forcePathStyle: env.S3_FORCE_PATH_STYLE,
 });
 
@@ -114,15 +113,14 @@ app.use(timeout(env.REQUEST_TIMEOUT_MS));
 app.use(
   rateLimiter({
     windowMs: 60 * 1000, // 1 minute
-    limit: 10,          // 100 requests per window
+    limit: 10, // 100 requests per window
     standardHeaders: "draft-6",
     keyGenerator: (c) =>
       c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
       c.req.header("x-real-ip") ??
       "anonymous",
-  })
+  }),
 );
-
 
 // OpenTelemetry middleware
 app.use(
@@ -130,7 +128,6 @@ app.use(
     serviceName: "delineate-hackathon-challenge",
   }),
 );
-
 
 app.use(async (c, next) => {
   const start = Date.now();
@@ -142,18 +139,14 @@ app.use(async (c, next) => {
   const SLOW_REQUEST_THRESHOLD_MS = 1000;
 
   if (durationMs > SLOW_REQUEST_THRESHOLD_MS) {
-    console.warn(
-      "[SLOW REQUEST]",
-      {
-        method: c.req.method,
-        path: c.req.path,
-        durationMs,
-        requestId: c.get("requestId"),
-      }
-    );
+    console.warn("[SLOW REQUEST]", {
+      method: c.req.method,
+      path: c.req.path,
+      durationMs,
+      requestId: c.get("requestId"),
+    });
   }
 });
-
 
 // Sentry middleware
 app.use(
@@ -537,20 +530,18 @@ app.openapi(downloadInitiateRoute, async (c) => {
         type: "exponential",
         delay: 5000,
       },
-    }
+    },
   );
 
-
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  await redis.hset(`job:${job.id ?? ''}`, {
+  await redis.hset(`job:${job.id ?? ""}`, {
     status: "queued",
     totalFiles: file_ids.length,
     processedFiles: 0,
     error: "",
-    ownerId: userId, 
+    ownerId: userId,
     updatedAt: Date.now(),
   });
-
 
   return c.json(
     {
@@ -641,9 +632,6 @@ app.openapi(downloadStatusRoute, async (c) => {
   return c.json(response, 200);
 });
 
-
-
-
 app.openapi(downloadCheckRoute, async (c) => {
   const { sentry_test } = c.req.valid("query");
   const { file_id } = c.req.valid("json");
@@ -664,7 +652,6 @@ app.openapi(downloadCheckRoute, async (c) => {
     200,
   );
 });
-
 
 const downloadResultRoute = createRoute({
   method: "get",
@@ -706,7 +693,7 @@ app.openapi(downloadResultRoute, async (c) => {
   }
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   const job = await redis.hgetall(`job:${jobId}`);
-  
+
   // 1️⃣ Job must exist
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   if (Object.keys(job).length === 0) {
@@ -725,24 +712,19 @@ app.openapi(downloadResultRoute, async (c) => {
     return c.json({ error: "Forbidden" }, 403);
   }
 
-   
   const url = await minio.presignedGetObject(
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     job.bucket,
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     job.resultKey,
-    60 * 10 // 10 minutes
+    60 * 10, // 10 minutes
   );
   // WRITE TO FILE INSTEAD OF CONSOLE
   console.log("Presigned URL:", url);
   fs.writeFileSync("presigned-url.txt", url);
 
-
-  
-
   return c.json({ downloadUrl: url });
 });
-
 
 // Download Start Route - simulates long-running download with random delay
 const downloadStartRoute = createRoute({
