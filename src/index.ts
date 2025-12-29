@@ -113,7 +113,7 @@ app.use(timeout(env.REQUEST_TIMEOUT_MS));
 app.use(
   rateLimiter({
     windowMs: 60 * 1000, // 1 minute
-    limit: 10, // 100 requests per window
+    limit: env.NODE_ENV === "production" ? 100 : 1000, // Higher limit for dev/test
     standardHeaders: "draft-6",
     keyGenerator: (c) =>
       c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??

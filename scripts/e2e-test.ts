@@ -204,7 +204,10 @@ async function testDownloadInitiate(): Promise<void> {
   // Valid request
   const response = await fetch(`${BASE_URL}/v1/download/initiate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": "test-user-123",
+    },
     body: JSON.stringify({ file_ids: [10000, 20000, 30000] }),
   });
   const data = (await response.json()) as {
@@ -246,7 +249,10 @@ async function testDownloadInitiate(): Promise<void> {
   // Invalid request - file_id too small
   const invalidResponse1 = await fetch(`${BASE_URL}/v1/download/initiate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": "test-user-123",
+    },
     body: JSON.stringify({ file_ids: [100] }),
   });
 
@@ -263,7 +269,10 @@ async function testDownloadInitiate(): Promise<void> {
   // Invalid request - empty array
   const invalidResponse2 = await fetch(`${BASE_URL}/v1/download/initiate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": "test-user-123",
+    },
     body: JSON.stringify({ file_ids: [] }),
   });
 
