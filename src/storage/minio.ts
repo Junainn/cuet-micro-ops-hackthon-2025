@@ -5,25 +5,37 @@ const MINIO_PORT = Number(process.env.MINIO_PORT ?? 9000);
 const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY;
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY;
 
-if (!MINIO_ENDPOINT) {
-  throw new Error("MINIO_ENDPOINT is required");
+/**
+ * MinIO is optional in CI / dev.
+ * Enabled only when all required env vars exist.
+ */
+export const isMinioEnabled =
+  Boolean(MINIO_ENDPOINT) &&
+  Boolean(MINIO_ACCESS_KEY) &&
+  Boolean(MINIO_SECRET_KEY);
+
+export const minio: Client | null = isMinioEnabled
+  ? new Client({
+      endPoint: MINIO_ENDPOINT as string,
+      port: MINIO_PORT,
+      useSSL: false,
+      accessKey: MINIO_ACCESS_KEY as string,
+      secretKey: MINIO_SECRET_KEY as string,
+      region: "us-east-1",
+      pathStyle: true,
+    })
+  : null;
+
+if (!isMinioEnabled) {
+  console.warn("[MinIO] Disabled (missing env variables)");
 }
 
-if (!MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
-  throw new Error("MINIO credentials are required");
-}
+export const ensureBucket = async (bucket: string): Promise<void> => {
+  if (!minio) {
+    console.warn(`[MinIO] Skipping ensureBucket for ${bucket}`);
+    return;
+  }
 
-export const minio = new Client({
-  endPoint: MINIO_ENDPOINT,
-  port: MINIO_PORT,
-  useSSL: false,
-  accessKey: MINIO_ACCESS_KEY,
-  secretKey: MINIO_SECRET_KEY,
-  region: "us-east-1",
-  pathStyle: true,
-});
-
-export const ensureBucket = async (bucket: string) => {
   const exists = await minio.bucketExists(bucket);
   if (!exists) {
     await minio.makeBucket(bucket, "us-east-1");
