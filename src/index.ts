@@ -13,6 +13,11 @@ import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 import { rateLimiter } from "hono-rate-limiter";
+import { downloadQueue } from "./queues/download.queue.ts";
+import { redis } from "./redis.ts";
+import { minio } from "./storage/minio.ts";
+import fs from "fs";
+
 
 // Helper for optional URL that treats empty string as undefined
 const optionalUrl = z
@@ -57,11 +62,11 @@ const s3Client = new S3Client({
   ...(env.S3_ENDPOINT && { endpoint: env.S3_ENDPOINT }),
   ...(env.S3_ACCESS_KEY_ID &&
     env.S3_SECRET_ACCESS_KEY && {
-      credentials: {
-        accessKeyId: env.S3_ACCESS_KEY_ID,
-        secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-      },
-    }),
+    credentials: {
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    },
+  }),
   forcePathStyle: env.S3_FORCE_PATH_STYLE,
 });
 
@@ -108,15 +113,16 @@ app.use(timeout(env.REQUEST_TIMEOUT_MS));
 // Rate limiting middleware
 app.use(
   rateLimiter({
-    windowMs: env.RATE_LIMIT_WINDOW_MS,
-    limit: env.RATE_LIMIT_MAX_REQUESTS,
+    windowMs: 60 * 1000, // 1 minute
+    limit: 10,          // 100 requests per window
     standardHeaders: "draft-6",
     keyGenerator: (c) =>
       c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
       c.req.header("x-real-ip") ??
       "anonymous",
-  }),
+  })
 );
+
 
 // OpenTelemetry middleware
 app.use(
@@ -124,6 +130,30 @@ app.use(
     serviceName: "delineate-hackathon-challenge",
   }),
 );
+
+
+app.use(async (c, next) => {
+  const start = Date.now();
+
+  await next();
+
+  const durationMs = Date.now() - start;
+
+  const SLOW_REQUEST_THRESHOLD_MS = 1000;
+
+  if (durationMs > SLOW_REQUEST_THRESHOLD_MS) {
+    console.warn(
+      "[SLOW REQUEST]",
+      {
+        method: c.req.method,
+        path: c.req.path,
+        durationMs,
+        requestId: c.get("requestId"),
+      }
+    );
+  }
+});
+
 
 // Sentry middleware
 app.use(
@@ -488,18 +518,124 @@ const downloadCheckRoute = createRoute({
   },
 });
 
-app.openapi(downloadInitiateRoute, (c) => {
+app.openapi(downloadInitiateRoute, async (c) => {
   const { file_ids } = c.req.valid("json");
-  const jobId = crypto.randomUUID();
+  const userId = c.req.header("x-user-id");
+
+  if (!userId) {
+    return c.json({ error: "Missing user identity" }, 401);
+  }
+
+  const job = await downloadQueue.add(
+    "download-job",
+    {
+      fileIds: file_ids,
+    },
+    {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
+    }
+  );
+
+
+  await redis.hset(`job:${job.id}`, {
+    status: "queued",
+    totalFiles: file_ids.length,
+    processedFiles: 0,
+    error: "",
+    ownerId: userId, 
+    updatedAt: Date.now(),
+  });
+
+
   return c.json(
     {
-      jobId,
+      jobId: job.id,
       status: "queued" as const,
       totalFileIds: file_ids.length,
     },
     200,
   );
 });
+
+//status route
+
+const downloadStatusRoute = createRoute({
+  method: "get",
+  path: "/v1/download/status/{jobId}",
+  tags: ["Download"],
+  summary: "Get download job status",
+  description: "Returns the current status of a download job",
+  request: {
+    params: z.object({
+      jobId: z.string().openapi({
+        description: "Job ID returned from /download/initiate",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Job status",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.string(),
+            totalFiles: z.string().optional(),
+            processedFiles: z.string().optional(),
+            error: z.string().optional(),
+            updatedAt: z.string().optional(),
+          }),
+        },
+      },
+    },
+    404: {
+      description: "Job not found",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(downloadStatusRoute, async (c) => {
+  const { jobId } = c.req.valid("param");
+
+  const cacheKey = `cache:job:status:${jobId}`;
+
+  // 1️⃣ Try cache first
+  const cached = await redis.get(cacheKey);
+  if (cached) {
+    console.log("[Cache] HIT job status", jobId);
+    return c.json(JSON.parse(cached), 200);
+  }
+
+  console.log("[Cache] MISS job status", jobId);
+
+  // 2️⃣ Fallback to source of truth
+  const jobStatus = await redis.hgetall(`job:${jobId}`);
+
+  if (!jobStatus || Object.keys(jobStatus).length === 0) {
+    return c.json({ error: "Job not found" }, 404);
+  }
+
+  const response = {
+    jobId,
+    ...jobStatus,
+  };
+
+  // 3️⃣ Store in cache (10 seconds)
+  await redis.setex(cacheKey, 10, JSON.stringify(response));
+
+  return c.json(response, 200);
+});
+
+
+
 
 app.openapi(downloadCheckRoute, async (c) => {
   const { sentry_test } = c.req.valid("query");
@@ -521,6 +657,78 @@ app.openapi(downloadCheckRoute, async (c) => {
     200,
   );
 });
+
+
+const downloadResultRoute = createRoute({
+  method: "get",
+  path: "/v1/download/result/{jobId}",
+  tags: ["Download"],
+  summary: "Get download result URL",
+  request: {
+    params: z.object({
+      jobId: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Download URL",
+      content: {
+        "application/json": {
+          schema: z.object({
+            downloadUrl: z.string(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Result not ready",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(downloadResultRoute, async (c) => {
+  const { jobId } = c.req.valid("param");
+  const userId = c.req.header("x-user-id");
+  if (!userId) {
+    return c.json({ error: "Missing user identity" }, 401);
+  }
+  const job = await redis.hgetall(`job:${jobId}`);
+  
+  // 1️⃣ Job must exist
+  if (!job || Object.keys(job).length === 0) {
+    return c.json({ error: "Job not found" }, 404);
+  }
+
+  // 2️⃣ Job must be completed
+  if (job.status !== "completed") {
+    return c.json({ error: "Result not ready" }, 400);
+  }
+
+  // 3️⃣ Ownership check
+  if (job.ownerId !== userId) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  const url = await minio.presignedGetObject(
+    job.bucket,
+    job.resultKey,
+    60 * 10 // 10 minutes
+  );
+  // WRITE TO FILE INSTEAD OF CONSOLE
+  console.log("Presigned URL:", url);
+  fs.writeFileSync("presigned-url.txt", url);
+
+
+  
+
+  return c.json({ downloadUrl: url });
+});
+
 
 // Download Start Route - simulates long-running download with random delay
 const downloadStartRoute = createRoute({

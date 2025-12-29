@@ -5,15 +5,21 @@
     "node": ">=24.10.0"
   },
   "scripts": {
-    "dev": "DOWNLOAD_DELAY_MIN_MS=5000 DOWNLOAD_DELAY_MAX_MS=15000 node --env-file=.env --experimental-transform-types --watch src/index.ts",
-    "start": "DOWNLOAD_DELAY_MIN_MS=10000 DOWNLOAD_DELAY_MAX_MS=120000 node --env-file=.env --experimental-transform-types src/index.ts",
+    
+    "dev": "cross-env DOWNLOAD_DELAY_MIN_MS=5000 DOWNLOAD_DELAY_MAX_MS=15000 node --experimental-transform-types --watch src/index.ts",
+
+    "start": "cross-env DOWNLOAD_DELAY_MIN_MS=10000 DOWNLOAD_DELAY_MAX_MS=120000 node --env-file=.env src/index.ts",
+
+
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:e2e": "node --experimental-transform-types scripts/run-e2e.ts",
     "docker:dev": "docker compose -f docker/compose.dev.yml up --build",
-    "docker:prod": "docker compose -f docker/compose.prod.yml up --build -d"
+    "docker:prod": "docker compose -f docker/compose.prod.yml up --build -d",
+    "worker": "node src/workers/download.worker.ts"
+
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
@@ -26,13 +32,17 @@
     "@opentelemetry/sdk-node": "^0.208.0",
     "@opentelemetry/semantic-conventions": "^1.38.0",
     "@scalar/hono-api-reference": "^0.9.28",
+    "bullmq": "^5.66.2",
     "hono": "^4.10.8",
     "hono-rate-limiter": "^0.4.2",
+    "ioredis": "^5.8.2",
+    "minio": "^8.0.6",
     "zod": "^4.1.13"
   },
   "devDependencies": {
     "@hono/eslint-config": "^2.0.3",
     "@types/node": "^24.10.2",
+    "cross-env": "^10.1.0",
     "prettier": "^3.7.4",
     "typescript": "^5.8.3"
   }

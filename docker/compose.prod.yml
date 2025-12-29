@@ -1,14 +1,79 @@
 name: delineate
 
 services:
-  delineate-app:
+  # ------------------------
+  # API SERVICE
+  # ------------------------
+  api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.prod
+    container_name: delineate-api
     ports:
       - "3000:3000"
     env_file:
       - ../.env
     environment:
-      - NODE_ENV=production
+      NODE_ENV: production
+      REDIS_HOST: redis
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_BUCKET_NAME: downloads
+      S3_FORCE_PATH_STYLE: "true"
+    depends_on:
+      - redis
+      - minio
     restart: unless-stopped
+
+  # ------------------------
+  # WORKER SERVICE
+  # ------------------------
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.prod
+    container_name: delineate-worker
+    command: npm run worker
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      REDIS_HOST: redis
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_BUCKET_NAME: downloads
+      S3_FORCE_PATH_STYLE: "true"
+    depends_on:
+      - redis
+      - minio
+    restart: unless-stopped
+
+  # ------------------------
+  # REDIS
+  # ------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: delineate-redis
+    restart: unless-stopped
+
+  # ------------------------
+  # MINIO (OBJECT STORAGE)
+  # ------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: delineate-minio
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY}
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+# ------------------------
+# VOLUMES
+# ------------------------
+volumes:
+  minio-data:
