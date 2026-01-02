@@ -9,6 +9,7 @@ Built using the **CUET MicroOps Hackathon 2025** challenge as a foundation. Team
 A scalable async job processing system that handles long-running tasks (10-120s) without blocking HTTP requests. Demonstrates production patterns for job queues, worker processes, and secure file delivery.
 
 **Key Metrics:**
+
 - API response time: <200ms (non-blocking)
 - Concurrent request handling: 50+ connections
 - Retry strategy: 3 attempts with exponential backoff
@@ -23,6 +24,7 @@ A scalable async job processing system that handles long-running tasks (10-120s)
 <tr><td>
 
 **Core Architecture**
+
 - ✅ Redis + BullMQ job queue
 - ✅ Separate worker process
 - ✅ Job state management in Redis
@@ -32,6 +34,7 @@ A scalable async job processing system that handles long-running tasks (10-120s)
 </td><td>
 
 **Storage & Security**
+
 - ✅ MinIO S3-compatible storage integration
 - ✅ Presigned URL generation
 - ✅ Job ownership validation
@@ -42,6 +45,7 @@ A scalable async job processing system that handles long-running tasks (10-120s)
 <tr><td>
 
 **Infrastructure**
+
 - ✅ Docker Compose multi-service setup
 - ✅ CI/CD pipeline (GitHub Actions)
 - ✅ Service orchestration (Redis + MinIO)
@@ -50,6 +54,7 @@ A scalable async job processing system that handles long-running tasks (10-120s)
 </td><td>
 
 **Testing & Quality**
+
 - ✅ Custom E2E test suite (32+ assertions)
 - ✅ Load testing with autocannon
 - ✅ CI service health checks
@@ -102,15 +107,15 @@ Client gets /v1/download/result/:jobId → Presigned URL
 
 ### Component Breakdown
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **API Service** | Hono + Node.js 24 | Non-blocking HTTP endpoints, job orchestration |
-| **Job Queue** | Redis + BullMQ | Distributed job queue with retry/backoff |
-| **Worker** | BullMQ Worker | Background processing, state updates |
-| **Cache** | Redis (TTL) | 10s cache for status queries (reduce load) |
-| **Storage** | MinIO | S3-compatible storage for job results |
-| **Observability** | OTEL + Jaeger | Distributed tracing (pre-configured) |
-| **Error Tracking** | Sentry | Exception capture (pre-configured) |
+| Component          | Technology        | Purpose                                        |
+| ------------------ | ----------------- | ---------------------------------------------- |
+| **API Service**    | Hono + Node.js 24 | Non-blocking HTTP endpoints, job orchestration |
+| **Job Queue**      | Redis + BullMQ    | Distributed job queue with retry/backoff       |
+| **Worker**         | BullMQ Worker     | Background processing, state updates           |
+| **Cache**          | Redis (TTL)       | 10s cache for status queries (reduce load)     |
+| **Storage**        | MinIO             | S3-compatible storage for job results          |
+| **Observability**  | OTEL + Jaeger     | Distributed tracing (pre-configured)           |
+| **Error Tracking** | Sentry            | Exception capture (pre-configured)             |
 
 ---
 
@@ -137,12 +142,12 @@ docker compose -f docker/compose.dev.yml up --build
 
 ### Services Available
 
-| Service | URL | Purpose |
-|---------|-----|---------|
-| API | http://localhost:3000 | REST API endpoints |
-| API Docs | http://localhost:3000/doc | OpenAPI documentation |
-| MinIO Console | http://localhost:9001 | Object storage UI (admin/admin) |
-| Jaeger UI | http://localhost:16686 | Distributed tracing dashboard |
+| Service       | URL                       | Purpose                         |
+| ------------- | ------------------------- | ------------------------------- |
+| API           | http://localhost:3000     | REST API endpoints              |
+| API Docs      | http://localhost:3000/doc | OpenAPI documentation           |
+| MinIO Console | http://localhost:9001     | Object storage UI (admin/admin) |
+| Jaeger UI     | http://localhost:16686    | Distributed tracing dashboard   |
 
 ---
 
@@ -150,17 +155,18 @@ docker compose -f docker/compose.dev.yml up --build
 
 ### Core Endpoints
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `POST` | `/v1/download/initiate` | Create async job, returns jobId | `x-user-id` |
-| `GET` | `/v1/download/status/:jobId` | Poll job status (cached 10s) | `x-user-id` |
-| `GET` | `/v1/download/result/:jobId` | Get presigned download URL | `x-user-id` |
-| `POST` | `/v1/download/check` | Check file availability in S3 | - |
-| `GET` | `/health` | Service health (storage check) | - |
+| Method | Endpoint                     | Description                     | Auth        |
+| ------ | ---------------------------- | ------------------------------- | ----------- |
+| `POST` | `/v1/download/initiate`      | Create async job, returns jobId | `x-user-id` |
+| `GET`  | `/v1/download/status/:jobId` | Poll job status (cached 10s)    | `x-user-id` |
+| `GET`  | `/v1/download/result/:jobId` | Get presigned download URL      | `x-user-id` |
+| `POST` | `/v1/download/check`         | Check file availability in S3   | -           |
+| `GET`  | `/health`                    | Service health (storage check)  | -           |
 
 ### Example Usage
 
 **1. Initiate Download Job:**
+
 ```bash
 curl -X POST http://localhost:3000/v1/download/initiate \
   -H "Content-Type: application/json" \
@@ -169,6 +175,7 @@ curl -X POST http://localhost:3000/v1/download/initiate \
 ```
 
 **Response:**
+
 ```json
 {
   "jobId": "550e8400-e29b-41d4-a716-446655440000",
@@ -179,12 +186,14 @@ curl -X POST http://localhost:3000/v1/download/initiate \
 ```
 
 **2. Poll Job Status:**
+
 ```bash
 curl http://localhost:3000/v1/download/status/550e8400-e29b-41d4-a716-446655440000 \
   -H "x-user-id: user123"
 ```
 
 **Response:**
+
 ```json
 {
   "jobId": "550e8400-e29b-41d4-a716-446655440000",
@@ -198,12 +207,14 @@ curl http://localhost:3000/v1/download/status/550e8400-e29b-41d4-a716-4466554400
 ```
 
 **3. Get Result:**
+
 ```bash
 curl http://localhost:3000/v1/download/result/550e8400-e29b-41d4-a716-446655440000 \
   -H "x-user-id: user123"
 ```
 
 **Response:**
+
 ```json
 {
   "jobId": "550e8400-e29b-41d4-a716-446655440000",
@@ -228,6 +239,7 @@ npm run test:e2e
 ```
 
 **Test Coverage:**
+
 - ✅ API endpoint responses
 - ✅ Input validation (Zod schemas)
 - ✅ Security headers (HSTS, CSP, X-Frame-Options)
@@ -251,19 +263,19 @@ autocannon -c 50 -d 15 http://localhost:3000/v1/download/status/test-job
 
 ### Core Technologies
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Runtime** | Node.js 24 | Native TypeScript support (`--experimental-transform-types`) |
-| **Framework** | Hono | Fast, lightweight web framework |
-| **Queue** | BullMQ | Redis-based job queue with advanced features |
-| **Storage** | MinIO | Self-hosted S3-compatible object storage |
-| **Database** | Redis | Job state + cache + queue backend |
-| **Container** | Docker Compose | Multi-service orchestration |
-| **Tracing** | OpenTelemetry + Jaeger | Distributed tracing (pre-configured) |
-| **Errors** | Sentry | Error tracking (pre-configured) |
-| **Validation** | Zod | Runtime type validation + OpenAPI schemas |
-| **Testing** | Custom + Autocannon | E2E tests + load testing |
-| **CI/CD** | GitHub Actions | Automated lint/test/build |
+| Layer          | Technology             | Purpose                                                      |
+| -------------- | ---------------------- | ------------------------------------------------------------ |
+| **Runtime**    | Node.js 24             | Native TypeScript support (`--experimental-transform-types`) |
+| **Framework**  | Hono                   | Fast, lightweight web framework                              |
+| **Queue**      | BullMQ                 | Redis-based job queue with advanced features                 |
+| **Storage**    | MinIO                  | Self-hosted S3-compatible object storage                     |
+| **Database**   | Redis                  | Job state + cache + queue backend                            |
+| **Container**  | Docker Compose         | Multi-service orchestration                                  |
+| **Tracing**    | OpenTelemetry + Jaeger | Distributed tracing (pre-configured)                         |
+| **Errors**     | Sentry                 | Error tracking (pre-configured)                              |
+| **Validation** | Zod                    | Runtime type validation + OpenAPI schemas                    |
+| **Testing**    | Custom + Autocannon    | E2E tests + load testing                                     |
+| **CI/CD**      | GitHub Actions         | Automated lint/test/build                                    |
 
 ---
 
@@ -302,6 +314,7 @@ autocannon -c 50 -d 15 http://localhost:3000/v1/download/status/test-job
 ### 1. Job Queue with Retry Strategy
 
 **Worker Configuration** ([src/workers/download.worker.ts](src/workers/download.worker.ts)):
+
 ```typescript
 attempts: 3,
 backoff: { type: "exponential", delay: 5000 }
@@ -309,14 +322,16 @@ backoff: { type: "exponential", delay: 5000 }
 ```
 
 **Lock Duration:**
+
 ```typescript
-lockDuration: 60000  // 60 seconds
+lockDuration: 60000; // 60 seconds
 // Prevents duplicate processing in distributed systems
 ```
 
 ### 2. Cache-Aside Pattern
 
 **Status Endpoint** ([src/index.ts](src/index.ts)):
+
 ```typescript
 // Check cache first (10s TTL)
 const cached = await redis.get(`cache:job:status:${jobId}`);
@@ -330,6 +345,7 @@ await redis.setex(cacheKey, 10, JSON.stringify(response));
 ### 3. Job Ownership Validation
 
 **Security Check** ([src/index.ts](src/index.ts)):
+
 ```typescript
 const userId = c.req.header("x-user-id");
 const job = await redis.hgetall(`job:${jobId}`);
@@ -342,6 +358,7 @@ if (job.ownerId !== userId) {
 ### 4. Presigned URL Generation
 
 **Secure File Access** ([src/index.ts](src/index.ts)):
+
 ```typescript
 const url = await minio.presignedGetObject(bucket, resultKey, 600);
 // 10-minute expiry, no credentials needed
@@ -350,8 +367,9 @@ const url = await minio.presignedGetObject(bucket, resultKey, 600);
 ### 5. Environment-Aware Rate Limiting
 
 **Adaptive Limits** ([src/index.ts](src/index.ts)):
+
 ```typescript
-limit: env.NODE_ENV === "production" ? 100 : 1000
+limit: env.NODE_ENV === "production" ? 100 : 1000;
 // Dev: 1000 req/min (don't block yourself)
 // Prod: 100 req/min (prevent abuse)
 ```
@@ -366,17 +384,18 @@ limit: env.NODE_ENV === "production" ? 100 : 1000
 Lint Job
 ├── ESLint (code quality)
 └── Prettier (formatting)
-   ↓ (passes)
+↓ (passes)
 Test Job
 ├── Start Redis service
 ├── Start MinIO container
 └── Run E2E tests (32+ assertions)
-   ↓ (passes)
+↓ (passes)
 Build Job
 └── Build production Docker image
 ```
 
 **Service Orchestration in CI:**
+
 - Redis: GitHub Actions service container
 - MinIO: Manual Docker container with health check wait
 - Environment variables configured for service networking
@@ -431,6 +450,7 @@ Build Job
 This repository was built during the **CUET MicroOps Hackathon 2025 (Delineate Challenge)**. The original problem statement and requirements are preserved in [HACKATHON_CHALLENGE.md](HACKATHON_CHALLENGE.md).
 
 **Important Notes:**
+
 - This is my **personal learning repository** focused on understanding async architectures
 - The **official team submission** (top 10 placement) is maintained separately by team member
 - This implementation prioritizes **learning depth** over hackathon completion
@@ -448,4 +468,3 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 - **Delineate Team** for creating the hackathon challenge
 - **CUET Fest 2025** for organizing the competition
-
