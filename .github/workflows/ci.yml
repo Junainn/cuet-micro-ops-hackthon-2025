@@ -29,7 +29,7 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-24.04
     needs: lint
-    
+
     services:
       redis:
         image: redis:7-alpine
@@ -40,7 +40,7 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-      
+
       minio:
         image: minio/minio:latest
         env:
@@ -53,7 +53,7 @@ jobs:
           --health-retries 5
         ports:
           - 9000:9000
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,8 +61,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci

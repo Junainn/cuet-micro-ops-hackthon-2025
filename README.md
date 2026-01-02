@@ -18,6 +18,7 @@ This project represents my hands-on learning journey with backend systems, focus
 I started with a hackathon challenge that simulated file download processing, but used it as a foundation to learn critical backend concepts:
 
 ### Learning Goals
+
 - **Async Job Queues**: Replace long HTTP requests with background processing
 - **Redis Beyond Caching**: Use Redis as a message broker and state store
 - **Worker-Based Architecture**: Separate API from heavy processing work
@@ -25,6 +26,7 @@ I started with a hackathon challenge that simulated file download processing, bu
 - **System Reliability**: Handle failures, retries, and job persistence
 
 ### What I Actually Learned
+
 - Why HTTP requests shouldn't block on long-running work
 - How Redis can coordinate distributed systems
 - The importance of job ownership and security
@@ -55,38 +57,42 @@ I started with a hackathon challenge that simulated file download processing, bu
 ### Components
 
 **API Service** (`src/index.ts`)
+
 - Accepts download requests instantly
 - Validates input and user identity
 - Enqueues jobs into Redis
 - Provides status and result endpoints
 
 **Worker Service** (`src/workers/download.worker.ts`)
+
 - Runs independently of the API
 - Processes jobs from Redis queue
 - Simulates long-running file processing
 - Updates job status and stores results
 
 **Redis**
+
 - Job queue (BullMQ)
 - Authoritative job state store
 - Read-through cache for status requests
 
 **MinIO**
+
 - S3-compatible object storage
 - Stores processed files
 - Generates secure presigned URLs
 
 ## Tech Stack
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Runtime | Node.js 24 | Modern JavaScript with native TypeScript |
-| Framework | Hono | Fast, lightweight web framework |
-| Queue | Redis + BullMQ | Job queuing and state management |
-| Storage | MinIO | Self-hosted S3-compatible storage |
-| Container | Docker + Docker Compose | Multi-service orchestration |
-| Testing | Custom E2E suite | API and integration testing |
-| CI/CD | GitHub Actions | Automated linting and testing |
+| Component | Technology              | Purpose                                  |
+| --------- | ----------------------- | ---------------------------------------- |
+| Runtime   | Node.js 24              | Modern JavaScript with native TypeScript |
+| Framework | Hono                    | Fast, lightweight web framework          |
+| Queue     | Redis + BullMQ          | Job queuing and state management         |
+| Storage   | MinIO                   | Self-hosted S3-compatible storage        |
+| Container | Docker + Docker Compose | Multi-service orchestration              |
+| Testing   | Custom E2E suite        | API and integration testing              |
+| CI/CD     | GitHub Actions          | Automated linting and testing            |
 
 ## Key Features I Built
 
@@ -112,6 +118,7 @@ I started with a hackathon challenge that simulated file download processing, bu
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 24+
 - Docker & Docker Compose
 - Git
@@ -153,14 +160,14 @@ curl -X POST http://localhost:3000/v1/download/initiate \
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Health check |
-| GET | `/health` | Detailed health status |
-| POST | `/v1/download/initiate` | Start bulk download job |
-| GET | `/v1/download/status/:jobId` | Check job status |
-| GET | `/v1/download/result/:jobId` | Get download URL |
-| POST | `/v1/download/check` | Check file availability |
+| Method | Endpoint                     | Description             |
+| ------ | ---------------------------- | ----------------------- |
+| GET    | `/`                          | Health check            |
+| GET    | `/health`                    | Detailed health status  |
+| POST   | `/v1/download/initiate`      | Start bulk download job |
+| GET    | `/v1/download/status/:jobId` | Check job status        |
+| GET    | `/v1/download/result/:jobId` | Get download URL        |
+| POST   | `/v1/download/check`         | Check file availability |
 
 ## Project Structure
 
@@ -222,12 +229,14 @@ curl -X POST http://localhost:3000/v1/download/initiate \
 ## Deployment Status
 
 ### ✅ Local Environment
+
 - Fully functional in Docker Compose
 - All services communicate correctly
 - Load testing validates performance
 - E2E tests pass consistently
 
 ### 🚧 Production Deployment
+
 - Architecture designed for VM deployment
 - Planned nginx reverse proxy configuration
 - VM unavailability prevented completion
@@ -236,16 +245,19 @@ curl -X POST http://localhost:3000/v1/download/initiate \
 ## Future Enhancements
 
 ### High Priority
+
 - [ ] VM deployment with nginx reverse proxy
 - [ ] Horizontal worker scaling
 - [ ] Enhanced error recovery and dead letter queues
 
 ### Medium Priority
+
 - [ ] Prometheus metrics collection
 - [ ] Frontend dashboard for job monitoring
 - [ ] Database persistence for job history
 
 ### Nice to Have
+
 - [ ] WebSocket real-time status updates
 - [ ] Advanced retry strategies
 - [ ] Multi-region deployment
